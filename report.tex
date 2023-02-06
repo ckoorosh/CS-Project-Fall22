@@ -1,6 +1,7 @@
 \documentclass{article}
 
 \usepackage{graphicx}
+\usepackage{xcolor}
 \usepackage{indentfirst}
 \usepackage{booktabs}
 \usepackage[a4paper, total={6in, 8in}]{geometry}
@@ -12,6 +13,9 @@
 \usepackage{url}
 \settextfont[Scale=1.2,ExternalLocation=fonts/,BoldFont=B Nazanin Bold.ttf]{B Nazanin}
 \setlatintextfont[Scale=1.2,ExternalLocation=fonts/,BoldFont=XB Zar.ttf]{Times New Roman}
+
+\definecolor{codegray}{gray}{0.9}
+\newcommand{\code}[1]{\colorbox{codegray}{\texttt{\lr{#1}}}}
 
 \begin{document}
 
@@ -54,6 +58,147 @@
 \lhead{پروژه شبیه‌سازی کامپیوتری}
 %pages header
 
-\section{بخش اول}
+\section{مقدمه}
+در این گزارش نحوه پیاده‌سازی و نتایج شبیه‌سازی یک زمان‌بند \lr{CPU} را شرح می‌دهیم. \footnote{کدهای پیاده‌سازی و نتایج کامل شبیه‌سازی در فایل ژوپیتری که همراه با این گزارش ضمیمه شده آمده است.}
+در این سیستم پردازه‌ها به‌صورت تسک‌هایی درنظر گرفته شده‌اند که بین صف‌های مختلف جابه‌جا می‌شوند.
+توضیحات پیاده‌سازی در ادامه آمده است.
+
+\section{پیاده‌سازی}
+\subsection{کلاس \lr{Task}}
+کلاس \lr{Task} به عنوان پردازه‌هایی که در صف‌ها قرار می‌گیرند تا به \lr{CPU} برسند طراحی شده است.
+نمونه‌های این کلاس مقادیر \lr{X} و \lr{Y} و \lr{Z} را برای تولید نرخ ورود (یا همان زمان \lr{inter-arrival})، زمان سرویس و اندازه زمان انقضا ورودی می‌گیرند.
+همچنین هنگام ساخت به‌صورت تصادفی و با احتمال‌های گفته‌شده یک اولویت برای تسک ساخته‌شده درنظر گرفته می‌شود.
+
+\subsection{کلاس \lr{JobCreator}}
+کلاس \lr{JobCreator} همان‌طور که در دستور پروژه آمده است تسک‌های ورودی سیستم را با مشخصات گفته‌شده تولید می‌کند و آن‌ها را در \lr{Priority Queue} لایه اول قرار می‌دهد.
+
+\subsection{صف‌های لایه دوم}
+برای لایه دوم صف‌های \lr{First Come First Serve} و \lr{Round Robin} به‌ترتیب در کلاس‌های \lr{FCFS} و \lr{RR} پیاده‌شده اند. صف‌های \lr{RR} مقدار کوانتوم تایم را ورودی می‌گیرند.
+تابع \code{insert} همواره تسک‌های جدید را به اول لیست اضافه می‌کند تا تسک با اولیت بیشتر (یا تسکی که زودتر آمده) آخر لیست در دسترس باشد.
+تابع \code{pop\_task} برای حذف تسک از لیست و \code{get\_task} هم برای گرفتن اولین تسک از لیست استفاده می‌شود.
+توابع دیگری هم برای استفاده در صف‌ها پیاده‌سازی شده‌اند.
+
+\subsection{کلاس \lr{Processor}}
+کلاس \lr{Processor} برای شبیه‌سازی پردازنده طراحی شده است.
+این کلاس تعداد پردازه‌ها، زمان شبیه‌سازی، صف‌های لایه دوم، و بقیه پارامترها را به‌عنوان ورودی می‌گیرد.
+تابع \code{job\_loader} هنگامی که محموع تعداد تسک‌ها در صف‌ها از \lr{k} کمتر می‌شود \lr{k} تسک با بالاترین اولویت را به اولین صف لایه دوم منتقل می‌کند.
+
+فرایند اصلی شبیه‌سازی در تابع \code{dispatcher} انجام می‌شود.
+در این متد یکی از صف‌های لایه دوم به‌صورت تصادفی با احتمال داده‌شده انتخاب می‌شود.
+سپس باتوجه به سیاست صف یک تسک انتخاب می‌شود و در پردازنده اجرا می‌شود.
+فرایند اجراشدن یک تسک در تابع \code{process} انجام می‌شود.
+به‌ این صورت که واحد زمانی یک واحد به جلو برده می‌شود.
+سپس بررسی می‌شود که اگر تسک به‌اندازه کوانتوم زمانی در صف فعلی سپری کرده است به صف بعدی منتقل شود.
+همچنین اگر زمان سرویس آن به پایان رسیده است از صف حذف می‌شود.
+
+
+\section{نتایج}
+شبیه‌سازی را به‌ازای ورودی‌ها و پارامترهای مختلف انجام می‌دهیم.
+ورودی‌های درنظر گرفته‌شده در جدول \ref{tab:inputs} قرار داده شده‌اند.
+\begin{table}[h!]
+	\centering
+	\begin{latin}
+		\begin{tabular}{ccccccccc}
+			\toprule
+			Input & X & Y & Z  & Num Processes & Len of Simulation & K  & T1 & T2 \\ \midrule
+			1     & 8 & 8 & 32 & 100           & 800               & 10 & 2  & 4  \\
+			2     & 8 & 4 & 32 & 50            & 800               & 10 & 2  & 4  \\
+			3     & 8 & 6 & 16 & 100           & 800               & 10 & 2  & 4  \\
+			4     & 8 & 8 & 32 & 100           & 800               & 10 & 6  & 8  \\ \bottomrule
+		\end{tabular}
+	\end{latin}
+	\caption{ورودی‌های شبیه‌سازی}
+	\label{tab:inputs}
+\end{table}
+
+\subsection{طول صف‌ها}
+نمودار طول صف‌های لایه اول و دوم در شکل \ref{fig:loq} آمده است.
+
+میانگین طول صف‌ها به‌ازای ورودی‌های مختلف نیز در جدول \ref{tab:loq} آمده است.
+
+\begin{table}[h!]
+	\centering
+	\begin{latin}
+		\begin{tabular}{ccccc}
+			\toprule
+			Input & RR-T1 & RR-T2 & FSFS & Priority Queue \\ \midrule
+			1 & 0.30          & 2.03          & 0.87                   & 0.12           \\
+			2 & 0.25          & 0.33          & 0.02                   & 0.02           \\
+			3 & 0.26          & 0.67          & 0.13                   & 0.06           \\
+			4 & 0.98          & 2.23          & 0                      & 0.12           \\ \bottomrule
+		\end{tabular}
+	\end{latin}
+	\caption{میانگین طول صف‌های مختلف به‌ازای ورودی‌های متفاوت}
+	\label{tab:loq}
+\end{table}
+
+
+\begin{figure}[h!]
+	\begin{subfigure}{1\columnwidth}
+		\centering
+		\includegraphics[width=\columnwidth]{figs/loq/queue-len-X-8-Y-8-Z-32-N-100-L-800-K-10-T1-2-T2-4.png}
+		\caption{ورودی اول}
+	\end{subfigure}
+	\vskip\baselineskip
+	\begin{subfigure}{1\columnwidth}
+		\centering
+		\includegraphics[width=\columnwidth]{figs/loq/queue-len-X-8-Y-4-Z-32-N-50-L-800-K-10-T1-2-T2-4.png}
+		\caption{ورودی دوم}
+	\end{subfigure}
+	\vskip\baselineskip
+	\begin{subfigure}{1\columnwidth}
+		\centering
+		\includegraphics[width=\columnwidth]{figs/loq/queue-len-X-8-Y-6-Z-16-N-100-L-800-K-10-T1-2-T2-4.png}
+		\caption{ورودی سوم}
+	\end{subfigure}
+	\vskip\baselineskip
+	\begin{subfigure}{1\columnwidth}
+		\centering
+		\includegraphics[width=\columnwidth]{figs/loq/queue-len-X-8-Y-8-Z-32-N-100-L-800-K-10-T1-6-T2-8.png}
+		\caption{ورودی چهارم}
+	\end{subfigure}
+	\caption{طول صف‌های لایه اول و دوم به‌ازای ورودی‌های مختلف}
+	\label{fig:loq}
+\end{figure}
+
+\subsection{میانگین زمان صرف‌شده در صف‌ها}
+نمودار زمان صرف‌شده در صف‌ها در شکل \ref{fig:tsq} آمده است.
+
+\begin{figure}[h!]
+	\begin{subfigure}{1\columnwidth}
+		\centering
+		\includegraphics[width=\columnwidth]{figs/tsq/task-in-queue-X-8-Y-8-Z-32-N-100-L-800-K-10-T1-2-T2-4.png}
+		\caption{ورودی اول}
+	\end{subfigure}
+	\vskip\baselineskip
+	\begin{subfigure}{1\columnwidth}
+		\centering
+		\includegraphics[width=\columnwidth]{figs/tsq/task-in-queue-X-8-Y-4-Z-32-N-50-L-800-K-10-T1-2-T2-4.png}
+		\caption{ورودی دوم}
+	\end{subfigure}
+	\vskip\baselineskip
+	\begin{subfigure}{1\columnwidth}
+		\centering
+		\includegraphics[width=\columnwidth]{figs/tsq/task-in-queue-X-8-Y-6-Z-16-N-100-L-800-K-10-T1-2-T2-4.png}
+		\caption{ورودی سوم}
+	\end{subfigure}
+	\vskip\baselineskip
+	\begin{subfigure}{1\columnwidth}
+		\centering
+		\includegraphics[width=\columnwidth]{figs/tsq/task-in-queue-X-8-Y-8-Z-32-N-100-L-800-K-10-T1-6-T2-8.png}
+		\caption{ورودی چهارم}
+	\end{subfigure}
+	\caption{زمان صرف‌شده در صف‌های مختلف به‌ازای ورودی‌های مختلف}
+	\label{fig:tsq}
+\end{figure}
+
+\subsection{میزان بهره‌وری پردازنده}
+میزان بهره‌وری پردازنده در ورودی اول $100\%$، در ورودی دوم $78.0\%$، در ورودی سوم $80.2\%$ و در ورودی چهارم $98.5\%$ است.
+
+\subsection{بهبود میانگین زمان صرف‌شده در صف‌ها}
+از روی مشاهدات و همچنین با استناد به این‌که هرچه مقدار کوانتوم‌ها کمتر باشد تسک‌ها در صف‌های \lr{RR} (مخصوصا \lr{RR-T1}) کمتر باقی می‌مانند و می‌دانیم احتمال انتخاب این صف‌ها توسط \lr{dispatcher} بیشتر است، بنابراین تسک‌ها کمتر در صف \lr{RR} و بیشتر در \lr{FCFS} باقی می‌مانند و به‌طور میانگین هم کمتر زمان خود را در صف سپری می‌کنند.
+
+\subsection{درصد پردازه‌های منقضی‌شده}
+درصد پردازه‌های منقضی‌شده در ورودی اول $20.0\%$، در ورودی دوم $0.0\%$، در ورودی سوم $1.0\%$ و در ورودی چهارم $28.0\%$ است.
 
 \end{document}
